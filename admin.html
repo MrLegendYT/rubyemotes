@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ruby Admin | Pro Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="global.css">
+</head>
+<body class="bg-[#050505] text-white">
+    <div id="loginBox" class="fixed inset-0 bg-black flex items-center justify-center z-50">
+        <div class="bg-zinc-900 p-8 rounded-2xl border border-zinc-800 w-80 shadow-2xl">
+            <h2 class="text-xl font-bold mb-4 text-[#E0115F]">Admin Login</h2>
+            <input type="email" id="email" placeholder="Admin Email" class="w-full bg-black border border-zinc-800 p-2 rounded mb-2 text-sm outline-none">
+            <input type="password" id="pass" placeholder="Password" class="w-full bg-black border border-zinc-800 p-2 rounded mb-4 text-sm outline-none">
+            <button onclick="login()" class="w-full bg-[#E0115F] py-2 rounded font-bold hover:bg-[#c00e52]">Sign In</button>
+        </div>
+    </div>
+
+    <div id="dashboard" class="hidden p-6 max-w-6xl mx-auto">
+        <div class="flex justify-between items-center mb-8 border-b border-zinc-800 pb-5">
+            <h1 class="text-3xl font-black text-[#E0115F]">RUBY CONTROL CENTER</h1>
+            <button onclick="logout()" class="text-xs text-zinc-500 hover:text-white">Logout</button>
+        </div>
+
+        <div class="grid lg:grid-cols-3 gap-6">
+            <div class="space-y-6">
+                <div class="bg-zinc-900 p-5 rounded-xl border border-zinc-800">
+                    <h3 class="text-xs font-bold uppercase text-zinc-500 mb-4 tracking-widest">Ad Link Manager</h3>
+                    <input type="text" id="adUrlInp" placeholder="Your Ad Link (Linkvertise etc)" class="w-full bg-black border border-zinc-800 p-2 rounded text-sm mb-3">
+                    <button onclick="saveAdLink()" class="w-full bg-white text-black text-xs font-bold py-2 rounded">Update Public Link</button>
+                </div>
+
+                <div class="bg-zinc-900 p-5 rounded-xl border border-zinc-800">
+                    <h3 class="text-xs font-bold uppercase text-[#E0115F] mb-4 tracking-widest">Bot API Config</h3>
+                    <code id="apiUrlDisplay" class="block bg-black p-2 rounded text-[10px] text-zinc-400 break-all border border-zinc-800">Loading API...</code>
+                </div>
+            </div>
+
+            <div class="bg-zinc-900 p-5 rounded-xl border border-zinc-800 h-fit">
+                <h3 class="text-xs font-bold uppercase text-zinc-500 mb-4 tracking-widest">Add Asset</h3>
+                <input type="text" id="emoName" placeholder="Emote Name (LOL)" class="w-full bg-black border border-zinc-800 p-3 rounded mb-3 text-sm">
+                <input type="text" id="emoUrl" placeholder="Icon URL (.png)" class="w-full bg-black border border-zinc-800 p-3 rounded mb-3 text-sm">
+                <input type="text" id="emoAssetId" placeholder="Internal ID (e.g. 101)" class="w-full bg-black border border-zinc-800 p-3 rounded mb-4 text-sm">
+                <button onclick="addEmote()" class="w-full bg-[#E0115F] py-3 rounded font-black text-sm">DEPLOY EMOTE</button>
+            </div>
+
+            <div class="bg-zinc-900 p-5 rounded-xl border border-zinc-800">
+                <h3 class="text-xs font-bold uppercase text-zinc-500 mb-4 tracking-widest">Database Manager</h3>
+                <div id="adminList" class="space-y-2 max-h-[500px] overflow-y-auto pr-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, setDoc, onSnapshot, query, orderBy, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBF26X1iWV7QuV40cFlC8Nm6md2yU2ym9M",
+            authDomain: "studio-8134566124-7145f.firebaseapp.com",
+            projectId: "studio-8134566124-7145f",
+            appId: "1:915705526733:web:ce22ea1fc5fccbfbefec84"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // API Display
+        document.getElementById('apiUrlDisplay').innerText = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/emotes`;
+
+        // LOGIN/LOGOUT
+        window.login = () => {
+            const e = document.getElementById('email').value;
+            const p = document.getElementById('pass').value;
+            signInWithEmailAndPassword(auth, e, p).catch(err => alert(err.message));
+        };
+        window.logout = () => signOut(auth);
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.getElementById('loginBox').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+                loadDashboardData();
+            } else {
+                document.getElementById('loginBox').classList.remove('hidden');
+                document.getElementById('dashboard').classList.add('hidden');
+            }
+        });
+
+        // SINGLE ADD EMOTE FUNCTION (CLEANED UP)
+        window.addEmote = async () => {
+            const name = document.getElementById('emoName').value;
+            const url = document.getElementById('emoUrl').value;
+            const assetId = document.getElementById('emoAssetId').value;
+
+            if(!name || !url || !assetId) return alert("Fill all fields including Internal ID!");
+
+            await addDoc(collection(db, "emotes"), { 
+                name, 
+                url, 
+                assetId, 
+                createdAt: new Date() 
+            });
+
+            document.getElementById('emoName').value = '';
+            document.getElementById('emoUrl').value = '';
+            document.getElementById('emoAssetId').value = '';
+            alert("Emote Deployed!");
+        };
+
+        window.saveAdLink = async () => {
+            const url = document.getElementById('adUrlInp').value;
+            await setDoc(doc(db, "settings", "adConfig"), { url });
+            alert("Ad Link Updated!");
+        };
+
+        function loadDashboardData() {
+            getDoc(doc(db, "settings", "adConfig")).then(d => {
+                if(d.exists()) document.getElementById('adUrlInp').value = d.data().url;
+            });
+
+            onSnapshot(query(collection(db, "emotes"), orderBy("createdAt", "desc")), (snap) => {
+                const list = document.getElementById('adminList');
+                list.innerHTML = '';
+                snap.forEach(d => {
+                    const data = d.data();
+                    list.innerHTML += `
+                    <div class="flex justify-between items-center bg-black p-3 rounded border border-zinc-800 text-xs mb-2">
+                        <div class="flex flex-col">
+                            <span class="font-bold text-[#E0115F]">${data.name}</span>
+                            <span class="text-[9px] text-zinc-500">ID: ${data.assetId}</span>
+                        </div>
+                        <button onclick="del('${d.id}')" class="text-zinc-600 hover:text-red-500 transition">Delete</button>
+                    </div>`;
+                });
+            });
+        }
+        window.del = (id) => confirm("Delete this emote?") && deleteDoc(doc(db, "emotes", id));
+    </script>
+</body>
+</html>

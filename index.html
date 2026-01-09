@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ruby Vault | Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { background: #000; color: #fff; font-family: monospace; }</style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div class="w-full max-w-md p-8 border border-zinc-800 bg-zinc-950 shadow-2xl">
+        <h1 class="text-2xl font-bold mb-6 tracking-tighter uppercase text-center">Ruby Registration</h1>
+        <div class="space-y-4">
+            <select id="region" class="w-full bg-black border border-zinc-800 p-3 text-sm focus:border-white outline-none">
+                <option value="" disabled selected>Select Region</option>
+                <option value="India">India</option>
+                <option value="Pakistan">Pakistan</option>
+                <option value="Nepal">Nepal</option>
+                <option value="Bangladesh">Bangladesh</option>
+            </select>
+            <input type="text" id="teamCode" placeholder="Team Code" class="w-full bg-black border border-zinc-800 p-3 text-sm outline-none">
+            <div class="space-y-2">
+                <input type="text" id="uid1" placeholder="UID 1 (Mandatory)" class="w-full bg-black border border-zinc-700 p-3 text-sm outline-none">
+                <input type="text" id="uid2" placeholder="UID 2 (Optional)" class="w-full bg-black border border-zinc-900 p-3 text-sm outline-none">
+                <input type="text" id="uid3" placeholder="UID 3 (Optional)" class="w-full bg-black border border-zinc-900 p-3 text-sm outline-none">
+                <input type="text" id="uid4" placeholder="UID 4 (Optional)" class="w-full bg-black border border-zinc-900 p-3 text-sm outline-none">
+            </div>
+            <button onclick="start()" id="btn" class="w-full bg-white text-black font-bold py-4 text-xs uppercase hover:bg-zinc-200 transition">Enter App</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBF26X1iWV7QuV40cFlC8Nm6md2yU2ym9M",
+            authDomain: "studio-8134566124-7145f.firebaseapp.com",
+            projectId: "studio-8134566124-7145f",
+            appId: "1:915705526733:web:ce22ea1fc5fccbfbefec84"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        window.start = async () => {
+            const data = {
+                region: document.getElementById('region').value,
+                teamCode: document.getElementById('teamCode').value,
+                uids: [
+                    document.getElementById('uid1').value,
+                    document.getElementById('uid2').value,
+                    document.getElementById('uid3').value,
+                    document.getElementById('uid4').value
+                ].filter(u => u !== "")
+            };
+
+            if(!data.region || !data.teamCode || !data.uids[0]) return alert("Missing details!");
+
+            try {
+                const user = await signInAnonymously(auth);
+                await setDoc(doc(db, "active_sessions", user.user.uid), { ...data, timestamp: new Date() });
+                window.location.href = "app.html"; // GO TO MAIN APP
+            } catch (e) { alert(e.message); }
+        };
+    </script>
+</body>
+</html>

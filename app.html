@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ruby App | Emotes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+	<link rel="stylesheet" href="global.css">
+    <style>
+        body { background: #000; color: #fff; font-family: monospace; }
+        .card { border: 1px solid #111; }
+        .card:hover { border-color: #fff; background: #050505; }
+        .selected { border: 2px solid #fff !important; }
+		
+    </style>
+</head>
+<body>
+    <nav class="p-4 border-b border-zinc-900 flex justify-between items-center">
+        <h1 class="font-bold">RUBY_VAULT</h1>
+        <div id="status" class="text-[10px] text-zinc-500 uppercase">Checking Session...</div>
+        <button onclick="exit()" class="text-[10px] bg-zinc-900 px-3 py-1 border border-zinc-800">LOGOUT</button>
+    </nav>
+
+    <div class="max-w-6xl mx-auto p-6 grid lg:grid-cols-4 gap-6">
+        <div class="lg:col-span-3 grid grid-cols-2 md:grid-cols-5 gap-4" id="grid"></div>
+        <div class="bg-zinc-950 border border-zinc-900 p-6 h-fit">
+            <h3 class="text-xs font-bold mb-4 text-zinc-500 tracking-widest uppercase">Targeting</h3>
+            <p id="targetName" class="text-[10px] mb-6 text-zinc-400 italic">None Selected</p>
+            <input type="hidden" id="selectedUrl">
+            <button onclick="apply()" id="applyBtn" class="w-full bg-white text-black font-bold py-3 text-xs uppercase hover:bg-zinc-200 transition">Apply Emote</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, onSnapshot, query, orderBy, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBF26X1iWV7QuV40cFlC8Nm6md2yU2ym9M",
+            authDomain: "studio-8134566124-7145f.firebaseapp.com",
+            projectId: "studio-8134566124-7145f",
+            appId: "1:915705526733:web:ce22ea1fc5fccbfbefec84"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        let mySession = null;
+
+        // AUTH GUARD
+        onAuthStateChanged(auth, async (user) => {
+            if(!user) {
+                window.location.href = "index.html";
+            } else {
+                const snap = await getDoc(doc(db, "active_sessions", user.uid));
+                if(snap.exists()) {
+                    mySession = snap.data();
+                    document.getElementById('status').innerText = `${mySession.region} | TC: ${mySession.teamCode}`;
+                }
+            }
+        });
+
+        // LOAD EMOTES
+        onSnapshot(query(collection(db, "emotes"), orderBy("createdAt", "desc")), (snap) => {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            snap.forEach(d => {
+                const card = document.createElement('div');
+                card.className = "card p-4 cursor-pointer flex flex-col items-center bg-zinc-950";
+                card.innerHTML = `<img src="${d.data().url}" class="w-16 h-16 object-contain mb-2"><span class="text-[9px] text-zinc-500">${d.data().name}</span>`;
+                card.onclick = () => {
+                    document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+                    card.classList.add('selected');
+                    document.getElementById('selectedUrl').value = d.data().url;
+                    document.getElementById('targetName').innerText = "Target: " + d.data().name;
+                };
+                grid.appendChild(card);
+            });
+        });
+
+        // SEND TO BOT
+        window.apply = async () => {
+            const url = document.getElementById('selectedUrl').value;
+            if(!url) return alert("Select an emote!");
+            const btn = document.getElementById('applyBtn');
+            btn.innerText = "WAITING..."; btn.disabled = true;
+
+            await addDoc(collection(db, "requests"), {
+                ...mySession,
+                emoteUrl: url,
+                status: "pending",
+                createdAt: new Date()
+            });
+            alert("Command Sent to Bot!");
+            btn.innerText = "Apply Emote"; btn.disabled = false;
+        };
+
+        window.exit = () => signOut(auth).then(() => window.location.href = "index.html");
+    </script>
+</body>
+</html>
